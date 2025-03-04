@@ -26,10 +26,18 @@ router
       .group(() => {
         router.get("", [TranslationsController, "index"]);
         router.post("", [TranslationsController, "store"]);
-        router.get("/:hash", [TranslationsController, "show"]);
-        router.put("/:hash", [TranslationsController, "update"]);
-        router.delete("/:hash", [TranslationsController, "destroy"]);
-        router.post("/:hash/approve", [TranslationsController, "approve"]);
+        router.get("/:hash", [TranslationsController, "translationsForText"]);
+        router.get("/:isoCode", [
+          TranslationsController,
+          "translationsForLanguage",
+        ]);
+        router.get("/:hash/:isoCode", [TranslationsController, "show"]);
+        router.put("/:hash/:isoCode", [TranslationsController, "update"]);
+        router.delete("/:hash/:isoCode", [TranslationsController, "destroy"]);
+        router.post("/:hash/:isoCode/approve", [
+          TranslationsController,
+          "approve",
+        ]);
         router.post("/openAI", [
           TranslationsController,
           "requestTranslationOpenAI",

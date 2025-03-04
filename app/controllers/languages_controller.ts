@@ -1,6 +1,10 @@
 import type { HttpContext } from "@adonisjs/core/http";
 
 import Language from "#models/language";
+import {
+  createLanguageValidator,
+  updateLanguageValidator,
+} from "#validators/language";
 
 export default class LanguagesController {
   /**
@@ -14,7 +18,7 @@ export default class LanguagesController {
    * Handle form submission for the create action
    */
   async store({ request, response }: HttpContext) {
-    const data = request.only(["isoCode"]);
+    const data = await request.validateUsing(createLanguageValidator);
     const language = await Language.create(data);
     return response.created(language);
   }
@@ -30,9 +34,8 @@ export default class LanguagesController {
    * Handle form submission for the edit action
    */
   async update({ params, request }: HttpContext) {
+    const data = await request.validateUsing(updateLanguageValidator);
     const language = await Language.findOrFail(params.isoCode);
-
-    const data = request.only(["isoCode"]);
     language.merge(data);
     await language.save();
     return language;

@@ -6,6 +6,11 @@ import logger from "@adonisjs/core/services/logger";
 
 import Translation from "#models/translation";
 import env from "#start/env";
+import {
+  createTranslationValidator,
+  openaiTranslationValidator,
+  updateTranslationValidator,
+} from "#validators/translation";
 
 const openai = new OpenAI({
   apiKey: env.get("OPENAI_API_KEY"),
@@ -23,17 +28,7 @@ export default class TranslationsController {
    * Handle form submission for the create action
    */
   async store({ request, response }: HttpContext) {
-    const data = request.only([
-      "originalText",
-      "translatedText",
-      "originalLanguageCode",
-      "translatedLanguageCode",
-    ]) as {
-      originalText: string;
-      translatedText: string;
-      originalLanguageCode: string;
-      translatedLanguageCode: string;
-    };
+    const data = await request.validateUsing(createTranslationValidator);
 
     const hash = createHash("sha256").update(data.originalText).digest("hex");
     const existingTranslation = await Translation.find(hash);
@@ -53,35 +48,36 @@ export default class TranslationsController {
    * Show individual record
    */
   async show({ params }: HttpContext) {
-    return await Translation.findOrFail(params.hash);
+    const { hash, isoCode } = params as { hash: string; isoCode: string };
+    return await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", isoCode)
+      .firstOrFail();
   }
 
   /**
    * Handle form submission for the edit action
    */
-  async update({ params, request, response }: HttpContext) {
-    const translation = await Translation.findOrFail(params.hash);
+  async update({ params, request }: HttpContext) {
+    const { hash, isoCode } = params as { hash: string; isoCode: string };
+    const data = await request.validateUsing(updateTranslationValidator);
 
-    const data = request.only([
-      "originalText",
-      "translatedText",
-      "originalLanguageCode",
-      "translatedLanguageCode",
-    ]) as {
-      originalText: string;
-      translatedText: string;
-      originalLanguageCode: string;
-      translatedLanguageCode: string;
-    };
+    const translation = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", isoCode)
+      .firstOrFail();
 
-    const hash = createHash("sha256").update(data.originalText).digest("hex");
-    const existingTranslation = await Translation.find(hash);
+    const newHash = createHash("sha256")
+      .update(data.originalText)
+      .digest("hex");
+    const existingTranslation = await Translation.find(newHash);
     if (existingTranslation !== null) {
-      return response.conflict({ message: "Translation already exists." });
+      //TODO: check if that's the way we want to handle this
+      return existingTranslation;
     }
 
     translation.merge({
-      hash,
+      hash: newHash,
       ...data,
       isApproved: false,
     });
@@ -93,7 +89,11 @@ export default class TranslationsController {
    * Delete record
    */
   async destroy({ params }: HttpContext) {
-    const translation = await Translation.findOrFail(params.hash);
+    const { hash, isoCode } = params as { hash: string; isoCode: string };
+    const translation = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", isoCode)
+      .firstOrFail();
     await translation.delete();
   }
 
@@ -101,7 +101,11 @@ export default class TranslationsController {
    * Approve translation
    */
   async approve({ params }: HttpContext) {
-    const translation = await Translation.findOrFail(params.hash);
+    const { hash, isoCode } = params as { hash: string; isoCode: string };
+    const translation = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", isoCode)
+      .firstOrFail();
     translation.isApproved = true;
     await translation.save();
     return translation;
@@ -111,32 +115,28 @@ export default class TranslationsController {
    * Request translation by OpenAI
    */
   async requestTranslationOpenAI({ request, response }: HttpContext) {
-    const data = request.only([
-      "originalText",
-      "originalLanguageCode",
-      "translatedLanguageCode",
-    ]) as {
-      originalText: string;
-      originalLanguageCode: string;
-      translatedLanguageCode: string;
-    };
+    const { originalText, originalLanguageCode, translatedLanguageCode } =
+      await openaiTranslationValidator.validate(request.all());
 
-    const hash = createHash("sha256").update(data.originalText).digest("hex");
-    const existingTranslation = await Translation.find(hash);
+    const hash = createHash("sha256").update(originalText).digest("hex");
+    const existingTranslation = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", translatedLanguageCode)
+      .first();
     if (existingTranslation !== null) {
-      return response.conflict({ message: "Translation already exists." });
+      return existingTranslation;
     }
 
     //TODO: get someone from ML team to review this
     const systemPrompt = `You are a translation tool. You receive a string written in
-    polish language, and solely return the same string in english language
+    ${originalLanguageCode} language, and solely return the same string in ${translatedLanguageCode} language
     without losing the original formatting. Your translations are accurate, aiming not to deviate from the original
     structure, content, writing style and tone. The language were defined as ISO 639-1 codes. Do not add any additional information.`;
 
     const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
       messages: [
         { role: "developer", content: systemPrompt },
-        { role: "user", content: data.originalText },
+        { role: "user", content: originalText },
       ],
       model: "gpt-4o-mini",
       store: true,
@@ -166,12 +166,28 @@ export default class TranslationsController {
 
     const translation = await Translation.create({
       hash,
-      originalText: data.originalText,
+      originalText,
       translatedText,
-      originalLanguageCode: data.originalLanguageCode,
-      translatedLanguageCode: data.translatedLanguageCode,
+      originalLanguageCode,
+      translatedLanguageCode,
       isApproved: false,
     });
     return response.created(translation);
+  }
+
+  /**
+   * All translations for a specific language
+   */
+  async translationsForLanguage({ params }: HttpContext) {
+    const { isoCode } = params as { isoCode: string };
+    return Translation.query().where("translatedLanguageCode", isoCode);
+  }
+
+  /**
+   * All translations for a specific text
+   */
+  async translationsForText({ params }: HttpContext) {
+    const { hash } = params as { hash: string };
+    return Translation.query().where("hash", hash);
   }
 }

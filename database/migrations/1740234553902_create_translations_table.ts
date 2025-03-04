@@ -5,9 +5,9 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.string("hash").primary(); //hashed original text
+      table.string("hash"); //hashed original text
 
-      table.text("original_text").unique().notNullable();
+      table.text("original_text").notNullable();
       table.text("translated_text").notNullable();
 
       table
@@ -27,6 +27,8 @@ export default class extends BaseSchema {
 
       table.timestamp("created_at");
       table.timestamp("updated_at");
+
+      table.primary(["hash", "translated_language_code"]);
     });
   }
 
