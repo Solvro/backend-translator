@@ -27,7 +27,7 @@ export default class LanguagesController {
    * Show individual record
    */
   async show({ params }: HttpContext) {
-    return await Language.findOrFail(params.iso_code);
+    return await Language.findOrFail(params.isoCode);
   }
 
   /**

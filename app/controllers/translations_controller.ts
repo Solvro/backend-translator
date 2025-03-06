@@ -31,7 +31,10 @@ export default class TranslationsController {
     const data = await request.validateUsing(createTranslationValidator);
 
     const hash = createHash("sha256").update(data.originalText).digest("hex");
-    const existingTranslation = await Translation.find(hash);
+    const existingTranslation = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", data.translatedLanguageCode)
+      .first();
     if (existingTranslation !== null) {
       return response.conflict({ message: "Translation already exists." });
     }
@@ -135,10 +138,10 @@ export default class TranslationsController {
 
     const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
       messages: [
-        { role: "developer", content: systemPrompt },
+        { role: "system", content: systemPrompt },
         { role: "user", content: originalText },
       ],
-      model: "gpt-4o-mini",
+      model: "gpt-4",
       store: true,
     };
 

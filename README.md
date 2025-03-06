@@ -33,8 +33,7 @@ POST /languages
 
 ```json
 {
-  "isoCode": "en",
-  "name": "English"
+  "isoCode": "en"
 }
 ```
 

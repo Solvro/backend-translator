@@ -27,7 +27,7 @@ router
         router.get("", [TranslationsController, "index"]);
         router.post("", [TranslationsController, "store"]);
         router.get("/:hash", [TranslationsController, "translationsForText"]);
-        router.get("/:isoCode", [
+        router.get("/language/:isoCode", [
           TranslationsController,
           "translationsForLanguage",
         ]);
