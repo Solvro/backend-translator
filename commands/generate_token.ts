@@ -26,8 +26,7 @@ export default class GenerateToken extends BaseCommand {
       .update(plainToken)
       .digest("hex");
 
-    await ApiToken.create({ name: "Custom Token", hash: hashedToken });
-
+    await ApiToken.create({ name: this.name, hash: hashedToken });
     this.logger.info(`Generated Token: ${plainToken}`);
     this.logger.info(
       "Store this token safely. You won't be able to see it again.",
