@@ -6,7 +6,7 @@ const LanguagesController = () => import("#controllers/languages_controller");
 
 router.get("/", async () => {
   return {
-    hello: "world",
+    elo: "zelo",
   };
 });
 
