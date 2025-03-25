@@ -169,7 +169,6 @@ export default class TranslationsController {
 
     const translation = await Translation.create({
       hash,
-      originalText,
       translatedText,
       originalLanguageCode,
       translatedLanguageCode,
