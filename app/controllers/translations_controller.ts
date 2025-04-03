@@ -131,10 +131,31 @@ export default class TranslationsController {
     }
 
     //TODO: get someone from ML team to review this
-    const systemPrompt = `You are a translation tool. You receive a string written in
-    ${originalLanguageCode} language, and solely return the same string in ${translatedLanguageCode} language
-    without losing the original formatting. Your translations are accurate, aiming not to deviate from the original
-    structure, content, writing style and tone. The language were defined as ISO 639-1 codes. Do not add any additional information.`;
+    const systemPrompt = `
+    You are a professional translation tool. Your task is to translate text from ${originalLanguageCode} to ${translatedLanguageCode} while maintaining the highest quality and accuracy.  The languages were defined as ISO 639-1 codes
+    Key requirements:
+    1. Preserve all original formatting, including line breaks, spacing, and special characters
+    2. Maintain the original tone, style, and intent of the text
+    3. Keep technical terms, proper nouns, and domain-specific vocabulary intact
+    4. Ensure natural-sounding translations in the target language
+    5. Do not add any explanatory text or comments
+    6. Do not add any additional information
+    7. If the text contains no alphanumeric characters, return it unchanged
+    8. For ambiguous terms, choose the most contextually appropriate translation
+    9. Never return anything else than the translated text. Phrases like "Translation:", "Translated text:" or "No text to translate" are not allowed.
+    10. Do not trim extra spaces or newlines.
+    11. If the original text is already in the target language, return it unchanged.
+    
+    ${
+      originalLanguageCode === "pl" && translatedLanguageCode === "en"
+        ? `
+    Preferred translations for Polish to English:
+     - "Koło naukowe" -> "Science Club"
+     - "PWr" -> "WUST"
+     - "Samorząd studentów" (or similar) -> "Student Council"`
+        : ""
+    }
+    `.trim();
 
     const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
       messages: [
