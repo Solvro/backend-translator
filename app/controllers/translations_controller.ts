@@ -152,7 +152,13 @@ export default class TranslationsController {
     Preferred translations for Polish to English:
      - "Koło naukowe" -> "Science Club"
      - "PWr" -> "WUST"
-     - "Samorząd studentów" (or similar) -> "Student Council"`
+     - "Samorząd studentów" (or similar) -> "Student Council"
+     
+     
+     Do not translate the following proper nouns:
+     - "ToPWR" (name of a cool mobile app)
+     - "KN Solvro" (name of the best science club)
+     `
         : ""
     }
     `.trim();
