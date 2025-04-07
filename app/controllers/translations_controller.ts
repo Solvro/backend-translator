@@ -176,7 +176,7 @@ export default class TranslationsController {
     try {
       aiResponse = await openai.chat.completions.create(aiParams);
     } catch (error) {
-      logger.error("OpenAI request failed", error);
+      logger.error(`OpenAI request failed: ${error}`);
       return response.internalServerError({
         message: "Failed to fetch translation.",
       });
