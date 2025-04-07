@@ -170,7 +170,8 @@ export default class TranslationsController {
     9. Never return anything else than the translated text. Phrases like "Translation:", "Translated text:" or "No text to translate" are not allowed.
     10. Do not trim extra spaces or newlines.
     11. If the original text is already in the target language, return it unchanged.
-    
+    12. Do not translate URLs, email addresses, phone numbers, or other non-text content e.g. "https://www.google.com", "solvro.pwr.edu.pl" or "john.doe@example.com" or "+48 123 456 789"
+
     ${
       originalLanguageCode === "pl" && translatedLanguageCode === "en"
         ? `
