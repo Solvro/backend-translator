@@ -119,7 +119,9 @@ export default class TranslationsController {
    */
   private *splitTextIntoChunks(text: string, maxChunkLength = 15000) {
     // Split by sentences to avoid breaking mid-sentence
-    const sentences = text.match(/[^.!?]+[.!?]+|[^.!?\s]+/g) ?? [text];
+    const sentences = text.match(/[^.!?]+[.!?]+\s*|[^.!?\s]+(?:\s+|$)/g) ?? [
+      text,
+    ];
     let currentChunk = "";
     for (const sentence of sentences) {
       if ((currentChunk + sentence).length > maxChunkLength) {
