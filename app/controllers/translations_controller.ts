@@ -115,6 +115,30 @@ export default class TranslationsController {
   }
 
   /**
+   * Split text into chunks that won't exceed token limits
+   */
+  private *splitTextIntoChunks(text: string, maxChunkLength = 15000) {
+    // Split by sentences to avoid breaking mid-sentence
+    const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
+    let currentChunk = "";
+
+    for (const sentence of sentences) {
+      if ((currentChunk + sentence).length > maxChunkLength) {
+        if (currentChunk) {
+          yield currentChunk;
+        }
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+
+    if (currentChunk) {
+      yield currentChunk;
+    }
+  }
+
+  /**
    * Request translation by OpenAI
    */
   async requestTranslationOpenAI({ request, response }: HttpContext) {
@@ -126,6 +150,7 @@ export default class TranslationsController {
       .where("hash", hash)
       .where("translatedLanguageCode", translatedLanguageCode)
       .first();
+
     if (existingTranslation !== null) {
       return existingTranslation;
     }
@@ -163,18 +188,31 @@ export default class TranslationsController {
     }
     `.trim();
 
-    const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: originalText },
-      ],
-      model: "gpt-4",
-      store: true,
-    };
-
-    let aiResponse;
+    const textChunks = this.splitTextIntoChunks(originalText);
+    let translatedText: string | undefined;
+    let counter = 0;
+    logger.info(`Starting translation.`);
     try {
-      aiResponse = await openai.chat.completions.create(aiParams);
+      for (const textChunk of textChunks) {
+        const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: textChunk },
+          ],
+          model: "gpt-4",
+          store: true,
+        };
+
+        const completion = await openai.chat.completions.create(aiParams);
+        const content = completion.choices[0]?.message?.content ?? "";
+        if (translatedText === undefined) {
+          translatedText = content;
+        } else {
+          translatedText += content;
+        }
+        logger.info(`Translated chunk no: ${counter}.`);
+        counter++;
+      }
     } catch (error) {
       logger.error(`OpenAI request failed: ${error}`);
       return response.internalServerError({
@@ -182,17 +220,13 @@ export default class TranslationsController {
       });
     }
 
-    const translatedText = aiResponse.choices[0].message.content?.trim();
     if (translatedText === undefined) {
       return response.internalServerError({
         message: "Translation failed.",
       });
     }
 
-    const tokensConsumed = aiResponse.usage?.total_tokens;
-    if (tokensConsumed !== undefined) {
-      logger.info(`OpenAI tokens consumed: ${tokensConsumed}`);
-    }
+    logger.info(`Translated text in ${counter} chunks.`);
 
     const translation = await Translation.create({
       hash,
