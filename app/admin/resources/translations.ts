@@ -9,6 +9,14 @@ export const TranslationResource = {
   options: {
     properties: {
       ...readOnlyTimestamps,
+      hash: {
+        isVisible: {
+          list: false,
+          edit: false,
+          filter: false,
+          show: true,
+        },
+      },
     },
   },
 };
