@@ -1,5 +1,7 @@
 import router from "@adonisjs/core/services/router";
 
+import { middleware } from "#start/kernel";
+
 const TranslationsController = () =>
   import("#controllers/translations_controller");
 const LanguagesController = () => import("#controllers/languages_controller");
@@ -45,4 +47,5 @@ router
       })
       .prefix("/translations");
   })
+  .use(middleware.auth)
   .prefix("/api/v1");
