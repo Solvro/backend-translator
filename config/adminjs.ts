@@ -1,7 +1,7 @@
 import { AdminJSProviderConfig } from "@adminjs/adonis";
 
 import authProvider from "../app/admin/auth.js";
-import componentLoader from "../app/admin/component_loader.js";
+import { componentLoader } from "../app/admin/component_loader.js";
 import { adminjsResources } from "../app/admin/resources/index.js";
 
 const adminjsConfig: AdminJSProviderConfig = {

@@ -1,5 +1,10 @@
 import { ComponentLoader } from "adminjs";
 
-const componentLoader = new ComponentLoader();
+export const componentLoader = new ComponentLoader();
 
-export default componentLoader;
+export const Components = {
+  TruncatedText: componentLoader.add(
+    "TruncatedText",
+    "./components/truncated_text",
+  ),
+};
