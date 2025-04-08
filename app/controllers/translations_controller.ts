@@ -180,8 +180,8 @@ export default class TranslationsController {
      - "Koło naukowe" -> "Science Club"
      - "PWr" -> "WUST"
      - "Samorząd studentów" (or similar) -> "Student Council"
-     
-     
+
+
      Do not translate the following proper nouns:
      - "ToPWR" (name of a cool mobile app)
      - "KN Solvro" (name of the best science club)
@@ -201,7 +201,7 @@ export default class TranslationsController {
             { role: "system", content: systemPrompt },
             { role: "user", content: textChunk },
           ],
-          model: "gpt-4",
+          model: "gpt-4o",
           store: true,
         };
 
