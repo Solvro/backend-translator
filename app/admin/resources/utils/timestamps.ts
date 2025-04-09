@@ -4,7 +4,7 @@ export const readOnlyTimestamps = {
     isVisible: {
       edit: false,
       show: true,
-      list: false,
+      list: true,
       filter: true,
     },
   },
