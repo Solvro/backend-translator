@@ -47,5 +47,5 @@ router
       })
       .prefix("/translations");
   })
-  .use(middleware.auth)
+  .use(middleware.auth())
   .prefix("/api/v1");
