@@ -75,7 +75,6 @@ export default class TranslationsController {
       .digest("hex");
     const existingTranslation = await Translation.find(newHash);
     if (existingTranslation !== null) {
-      //TODO: check if that's the way we want to handle this
       return existingTranslation;
     }
 
@@ -156,7 +155,6 @@ export default class TranslationsController {
       return existingTranslation;
     }
 
-    //TODO: get someone from ML team to review this
     const systemPrompt = `
     You are a professional translation tool. Your task is to translate text from ${originalLanguageCode} to ${translatedLanguageCode} while maintaining the highest quality and accuracy.  The languages were defined as ISO 639-1 codes
     Key requirements:
