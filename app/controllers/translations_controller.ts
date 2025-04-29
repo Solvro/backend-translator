@@ -170,6 +170,7 @@ export default class TranslationsController {
     10. Do not trim extra spaces or newlines.
     11. If the original text is already in the target language, return it unchanged.
     12. Do not translate URLs, email addresses, phone numbers, or other non-text content e.g. "https://www.google.com", "solvro.pwr.edu.pl" or "john.doe@example.com" or "+48 123 456 789"
+    13. Do not translate addresses / street names. Also try to not translate bus stops, train stations, etc.
 
     ${
       originalLanguageCode === "pl" && translatedLanguageCode === "en"
