@@ -8,6 +8,21 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: backend_translator_test_only_tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +42,6 @@ jobs:
         run: |
           cp .env.example .env
           node ace generate:key
-
       - name: Check commit name
         if: github.event_name == 'pull_request'
         run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
@@ -47,6 +61,14 @@ jobs:
       - name: Run tests
         run: npm test
         if: always()
+        env:
+          DB_CONNECTION: pg
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          DB_DATABASE: backend_translator_test_only_tests
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Build
         run: npm run build
