@@ -10,6 +10,19 @@ import UrlTranslation from "#models/url_translation";
 interface TranslationResponse {
   translatedText: string;
 }
+if (process.env.NODE_ENV === "production") {
+  throw new Error("Tests should not run in production environment");
+}
+
+if (process.env.NODE_ENV !== "test") {
+  throw new Error("Tests must run in test environment");
+}
+
+if (process.env.DB_DATABASE !== "backend_translator_test_only_tests") {
+  throw new Error(
+    "Tests must run against backend_translator_test_only_tests database",
+  );
+}
 
 test.group("Translations Controller", (group) => {
   let token: string;
