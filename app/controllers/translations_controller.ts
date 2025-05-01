@@ -5,6 +5,7 @@ import type { HttpContext } from "@adonisjs/core/http";
 import logger from "@adonisjs/core/services/logger";
 
 import Translation from "#models/translation";
+import UrlTranslation from "#models/url_translation";
 import env from "#start/env";
 import {
   createTranslationValidator,
@@ -138,6 +139,29 @@ export default class TranslationsController {
     }
   }
 
+  private async replaceTranslatedUrls(
+    translation: Translation,
+  ): Promise<Translation> {
+    // Get URL translations for the specific language pair
+    const urlTranslations = await UrlTranslation.query()
+      .where("original_language_code", translation.originalLanguageCode)
+      .where("translated_language_code", translation.translatedLanguageCode);
+
+    // Replace URLs with their translated versions
+    for (const urlTranslation of urlTranslations) {
+      // Create a regex that matches the URL with or without trailing slash
+      const sourceUrlRegex = new RegExp(
+        `${urlTranslation.sourceUrl.replace(/\/$/, "")}\\/?`,
+        "g",
+      );
+      translation.translatedText = translation.translatedText.replace(
+        sourceUrlRegex,
+        urlTranslation.targetUrl,
+      );
+    }
+    return translation;
+  }
+
   /**
    * Request translation by OpenAI
    */
@@ -152,7 +176,7 @@ export default class TranslationsController {
       .first();
 
     if (existingTranslation !== null) {
-      return existingTranslation;
+      return await this.replaceTranslatedUrls(existingTranslation);
     }
 
     const systemPrompt = `
@@ -237,7 +261,7 @@ export default class TranslationsController {
       translatedLanguageCode,
       isApproved: false,
     });
-    return response.created(translation);
+    return response.created(await this.replaceTranslatedUrls(translation));
   }
 
   /**

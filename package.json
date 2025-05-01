@@ -30,7 +30,7 @@
     "lint": "eslint .",
     "prepare": "husky || true",
     "start": "node bin/server.js",
-    "test": "node ace test",
+    "test": "bash tests/setup-db.sh && NODE_ENV=test DB_DATABASE=backend_translator_test_only_tests node ace test",
     "typecheck": "tsc --noEmit"
   },
   "lint-staged": {
@@ -64,7 +64,7 @@
     "@solvro/config": "^1.13.4",
     "@swc/core": "1.10.7",
     "@types/luxon": "^3.4.2",
-    "@types/node": "^22.13.2",
+    "@types/node": "^22.15.3",
     "eslint": "^9.20.1",
     "hot-hook": "^0.4.0",
     "husky": "^9.1.7",
