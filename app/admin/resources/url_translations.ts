@@ -15,6 +15,12 @@ export const UrlTranslationResource = {
       targetUrl: {
         isTitle: true,
       },
+      originalLanguageCode: {
+        reference: "languages",
+      },
+      translatedLanguageCode: {
+        reference: "languages",
+      },
     },
   },
 };

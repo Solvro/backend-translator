@@ -28,7 +28,12 @@ export const TranslationResource = {
           list: Components.TruncatedText,
         },
       },
+      originalLanguageCode: {
+        reference: "languages",
+      },
+      translatedLanguageCode: {
+        reference: "languages",
+      },
     },
   },
-  features: [],
 };
