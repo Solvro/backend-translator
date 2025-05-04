@@ -38,7 +38,7 @@
   },
   "prettier": "@solvro/config/prettier",
   "dependencies": {
-    "@adminjs/adonis": "^1.1.1",
+    "@adminjs/adonis": "github:Solvro/adminjs-adonis#b2d02d7",
     "@adonisjs/auth": "^9.3.2",
     "@adonisjs/core": "^6.17.2",
     "@adonisjs/cors": "^2.2.1",
