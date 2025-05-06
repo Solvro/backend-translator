@@ -147,15 +147,13 @@ export default class TranslationsController {
       .where("original_language_code", translation.originalLanguageCode)
       .where("translated_language_code", translation.translatedLanguageCode);
 
+    const sorted = urlTranslations.sort((a, b) => {
+      return b.sourceUrl.length - a.sourceUrl.length;
+    });
     // Replace URLs with their translated versions
-    for (const urlTranslation of urlTranslations) {
-      // Create a regex that matches the URL with or without trailing slash
-      const sourceUrlRegex = new RegExp(
-        `${urlTranslation.sourceUrl.replace(/\/$/, "")}\\/?`,
-        "g",
-      );
-      translation.translatedText = translation.translatedText.replace(
-        sourceUrlRegex,
+    for (const urlTranslation of sorted) {
+      translation.translatedText = translation.translatedText.replaceAll(
+        urlTranslation.sourceUrl,
         urlTranslation.targetUrl,
       );
     }
