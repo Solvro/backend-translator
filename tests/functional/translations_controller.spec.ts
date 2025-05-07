@@ -222,8 +222,7 @@ test.group("Translations Controller", (group) => {
       translatedLanguageCode: "en",
     });
 
-    const textWithSolvroUrl =
-      "Sprawdź nasze portfolio: https://solvro.pl/pl/portfolio";
+    const textWithSolvroUrl = "https://solvro.pl/pl/portfolio";
 
     const response = await client
       .post("/api/v1/translations/openAI")
@@ -237,7 +236,130 @@ test.group("Translations Controller", (group) => {
     response.assertStatus(201);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
-      translatedText: "Check our portfolio: https://solvro.pl/en/portfolio",
+      translatedText: "https://solvro.pl/en/portfolio",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+      isApproved: false,
+    });
+  });
+
+  test("should translate Solvro portfolio URL from Polish to English", async ({
+    client,
+  }) => {
+    await Language.create({ isoCode: "pl" });
+    await Language.create({ isoCode: "en" });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://solvro.pl/pl",
+      targetUrl: "https://solvro.pl/en",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+    });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://solvro.pl/pl/",
+      targetUrl: "https://solvro.pl/en/",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+    });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://solvro.pl/pl/portfolio",
+      targetUrl: "https://solvro.pl/en/portfolio",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+    });
+
+    const textWithSolvroUrl = "https://solvro.pl/pl/portfolio";
+
+    const response = await client
+      .post("/api/v1/translations/openAI")
+      .json({
+        originalText: textWithSolvroUrl,
+        originalLanguageCode: "pl",
+        translatedLanguageCode: "en",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(201);
+    response.assertBodyContains({
+      originalText: textWithSolvroUrl,
+      translatedText: "https://solvro.pl/en/portfolio",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+      isApproved: false,
+    });
+  });
+
+  test("should translate Solvro portfolio URL from Polish to English", async ({
+    client,
+  }) => {
+    await Language.create({ isoCode: "pl" });
+    await Language.create({ isoCode: "en" });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://solvro.pl/pl/",
+      targetUrl: "https://solvro.pl/en/",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+    });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://solvro.pl/pl/portfolio",
+      targetUrl: "https://solvro.pl/en/portfolio",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+    });
+
+    const textWithSolvroUrl = "https://solvro.pl/pl/portfolio";
+
+    const response = await client
+      .post("/api/v1/translations/openAI")
+      .json({
+        originalText: textWithSolvroUrl,
+        originalLanguageCode: "pl",
+        translatedLanguageCode: "en",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(201);
+    response.assertBodyContains({
+      originalText: textWithSolvroUrl,
+      translatedText: "https://solvro.pl/en/portfolio",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+      isApproved: false,
+    });
+  });
+
+  test("should translate Solvro portfolio URL from Polish to English", async ({
+    client,
+  }) => {
+    await Language.create({ isoCode: "pl" });
+    await Language.create({ isoCode: "en" });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://solvro.pl/",
+      targetUrl: "https://solvro.pl/en/",
+      originalLanguageCode: "pl",
+      translatedLanguageCode: "en",
+    });
+
+    const textWithSolvroUrl = "https://solvro.pl/portfolio";
+
+    const response = await client
+      .post("/api/v1/translations/openAI")
+      .json({
+        originalText: textWithSolvroUrl,
+        originalLanguageCode: "pl",
+        translatedLanguageCode: "en",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(201);
+    response.assertBodyContains({
+      originalText: textWithSolvroUrl,
+      translatedText: "https://solvro.pl/en/portfolio",
       originalLanguageCode: "pl",
       translatedLanguageCode: "en",
       isApproved: false,

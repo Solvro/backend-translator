@@ -150,12 +150,25 @@ export default class TranslationsController {
     const sorted = urlTranslations.sort((a, b) => {
       return b.sourceUrl.length - a.sourceUrl.length;
     });
+
+    const matchedURLs: string[] = [];
+
     // Replace URLs with their translated versions
     for (const urlTranslation of sorted) {
-      translation.translatedText = translation.translatedText.replaceAll(
-        urlTranslation.sourceUrl,
-        urlTranslation.targetUrl,
-      );
+      if (translation.translatedText.includes(urlTranslation.sourceUrl)) {
+        if (
+          matchedURLs.some((matchedURL) =>
+            matchedURL.startsWith(urlTranslation.sourceUrl),
+          )
+        ) {
+          continue;
+        }
+        matchedURLs.push(urlTranslation.sourceUrl);
+        translation.translatedText = translation.translatedText.replaceAll(
+          urlTranslation.sourceUrl,
+          urlTranslation.targetUrl,
+        );
+      }
     }
     return translation;
   }

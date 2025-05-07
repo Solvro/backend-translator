@@ -31,6 +31,7 @@
     "prepare": "husky || true",
     "start": "node bin/server.js",
     "test": "bash tests/setup-db.sh && NODE_ENV=test DB_DATABASE=backend_translator_test_only_tests node ace test",
+    "token": "node ace generate:token",
     "typecheck": "tsc --noEmit"
   },
   "lint-staged": {
