@@ -1,5 +1,12 @@
 import { solvro } from "@solvro/config/eslint";
 
-export default solvro({
-  ignores: ["app/admin/components/*.tsx"],
-});
+export default solvro(
+  {
+    rules: {
+      "import/no-default-export": "off",
+    },
+  },
+  {
+    ignores: ["app/admin/components/*.tsx"],
+  },
+);
