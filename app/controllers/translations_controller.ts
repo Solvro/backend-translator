@@ -212,7 +212,7 @@ export default class TranslationsController {
         ? `
     Preferred translations for Polish to English:
      - "Koło naukowe" -> "Science Club"
-     - "PWr" -> "WUST"
+     - "PWr" -> "WrocławTech"
      - "Samorząd studentów" (or similar) -> "Student Council"
 
 
