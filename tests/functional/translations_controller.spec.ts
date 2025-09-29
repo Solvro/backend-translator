@@ -515,4 +515,59 @@ test.group("Translations Controller", (group) => {
     // The translated text should have placeholder URLs
     assert.equal(translatedUrls.length, originalUrls.length);
   });
+
+  test("should handle concurrent requests for the same translation without race condition", async ({
+    client,
+    assert,
+  }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    const textToTranslate = "Hello, testing concurrent requests";
+
+    // Make two parallel requests for the same translation
+    const [firstResponse, secondResponse] = await Promise.all([
+      client
+        .post("/api/v1/translations/openAI")
+        .json({
+          originalText: textToTranslate,
+          originalLanguageCode: "en",
+          translatedLanguageCode: "fr",
+        })
+        .header("x-api-token", token),
+      client
+        .post("/api/v1/translations/openAI")
+        .json({
+          originalText: textToTranslate,
+          originalLanguageCode: "en",
+          translatedLanguageCode: "fr",
+        })
+        .header("x-api-token", token),
+    ]);
+
+    // One should be 201 (created) and one should be 200 (from cache)
+    // We don't care which is which, but both should succeed
+    assert.isTrue(
+      (firstResponse.status() === 201 && secondResponse.status() === 200) ||
+        (firstResponse.status() === 200 && secondResponse.status() === 201),
+    );
+
+    // Both responses should contain the same translation
+    const firstTranslation = (firstResponse.body() as TranslationResponse)
+      .translatedText;
+    const secondTranslation = (secondResponse.body() as TranslationResponse)
+      .translatedText;
+
+    assert.equal(firstTranslation, secondTranslation);
+
+    // Verify that only one translation was stored in the database
+    const hash = createHash("sha256").update(textToTranslate).digest("hex");
+    const storedTranslations = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", "fr");
+
+    assert.equal(storedTranslations.length, 1);
+    assert.equal(storedTranslations[0].originalText, textToTranslate);
+    assert.equal(storedTranslations[0].translatedText, firstTranslation);
+  });
 });
