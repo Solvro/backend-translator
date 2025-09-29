@@ -5,6 +5,9 @@ import { middleware } from "#start/kernel";
 const TranslationsController = () =>
   import("#controllers/translations_controller");
 const LanguagesController = () => import("#controllers/languages_controller");
+const MetricsMiddleware = () => import("@solvro/solvronis-metrics");
+
+router.get("/metrics", [MetricsMiddleware, "emitMetrics"]);
 
 router.get("/", async () => {
   return {
