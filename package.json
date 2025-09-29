@@ -1,8 +1,8 @@
 {
-  "name": "hello-world",
-  "version": "0.0.0",
+  "name": "translator-api",
+  "version": "1.0.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
