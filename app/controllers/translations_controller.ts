@@ -1,3 +1,4 @@
+import { RequestBundler } from "@solvro/utils/request_bundler";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
 
@@ -19,7 +20,10 @@ const openai = new OpenAI({
 
 export default class TranslationsController {
   // Lock mechanism to prevent race conditions on translation requests
-  private static translationLocks = new Map<string, Promise<Translation>>();
+  private static translationRequestBundler = new RequestBundler<
+    string,
+    Translation
+  >();
 
   /**
    * Display a list of resource
@@ -179,74 +183,35 @@ export default class TranslationsController {
   /**
    * Request translation by OpenAI
    */
-  async requestTranslationOpenAI({ request, response }: HttpContext) {
+  async requestTranslationOpenAI({ request }: HttpContext) {
     const { originalText, originalLanguageCode, translatedLanguageCode } =
       await openaiTranslationValidator.validate(request.all());
 
     const hash = createHash("sha256").update(originalText).digest("hex");
     const lockKey = `${hash}-${translatedLanguageCode}`;
 
-    // Check if translation already exists in the database
-    const existingTranslation = await Translation.query()
-      .where("hash", hash)
-      .where("translatedLanguageCode", translatedLanguageCode)
-      .first();
-
-    if (existingTranslation !== null) {
-      return await this.replaceTranslatedUrls(existingTranslation);
-    }
-
-    // Check if another request is already processing this translation
-    const existingLock = TranslationsController.translationLocks.get(lockKey);
-    if (existingLock !== undefined) {
-      logger.info(
-        `Waiting for existing translation request: ${hash} (${translatedLanguageCode})`,
-      );
-      try {
-        // Wait for the other request to complete
-        await existingLock;
-        // Fetch the newly created translation from the database
-        const translation = await Translation.query()
+    return TranslationsController.translationRequestBundler.run(
+      lockKey,
+      async () => {
+        // Check if translation already exists in the database
+        const existingTranslation = await Translation.query()
           .where("hash", hash)
           .where("translatedLanguageCode", translatedLanguageCode)
-          .firstOrFail();
+          .first();
+
+        if (existingTranslation !== null) {
+          return await this.replaceTranslatedUrls(existingTranslation);
+        }
+
+        const translation = await this.performTranslation(
+          hash,
+          originalText,
+          originalLanguageCode,
+          translatedLanguageCode,
+        );
         return await this.replaceTranslatedUrls(translation);
-      } catch (error) {
-        logger.error(`Failed to wait for locked translation: ${error}`);
-        return response.internalServerError({
-          message: "Translation request failed.",
-        });
-      }
-    }
-
-    // Create a new lock for this translation request
-    const translationPromise = this.performTranslation(
-      hash,
-      originalText,
-      originalLanguageCode,
-      translatedLanguageCode,
+      },
     );
-
-    TranslationsController.translationLocks.set(lockKey, translationPromise);
-    logger.info(
-      `Created lock for translation: ${hash} (${translatedLanguageCode})`,
-    );
-
-    try {
-      const translation = await translationPromise;
-      return response.created(await this.replaceTranslatedUrls(translation));
-    } catch (error) {
-      logger.error(`Translation failed: ${error}`);
-      return response.internalServerError({
-        message: "Failed to fetch translation.",
-      });
-    } finally {
-      // Clean up the lock after completion or failure
-      TranslationsController.translationLocks.delete(lockKey);
-      logger.info(
-        `Removed lock for translation: ${hash} (${translatedLanguageCode})`,
-      );
-    }
   }
 
   /**
