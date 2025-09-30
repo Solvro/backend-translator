@@ -51,7 +51,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: "Hello, how are you?",
       translatedText: "Bonjour, comment ça va ?",
@@ -103,7 +103,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithUrl,
       translatedText: "Bonjour https://example.com/elozelo",
@@ -159,7 +159,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithMultipleUrls,
       translatedText:
@@ -192,7 +192,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithTrailingSlash,
       translatedText: "Bonjour https://example.com/blog-fr/",
@@ -233,7 +233,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -281,7 +281,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -322,7 +322,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -356,7 +356,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -385,7 +385,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    firstResponse.assertStatus(201);
+    firstResponse.assertStatus(200);
     firstResponse.assertBodyContains({
       originalText: textToTranslate,
       originalLanguageCode: "en",
@@ -463,7 +463,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    firstResponse.assertStatus(201);
+    firstResponse.assertStatus(200);
     firstResponse.assertBodyContains({
       originalText: longTextWithUrls,
       originalLanguageCode: "en",
@@ -545,12 +545,8 @@ test.group("Translations Controller", (group) => {
         .header("x-api-token", token),
     ]);
 
-    // One should be 201 (created) and one should be 200 (from cache)
-    // We don't care which is which, but both should succeed
-    assert.isTrue(
-      (firstResponse.status() === 201 && secondResponse.status() === 200) ||
-        (firstResponse.status() === 200 && secondResponse.status() === 201),
-    );
+    firstResponse.assertStatus(200);
+    secondResponse.assertStatus(200);
 
     // Both responses should contain the same translation
     const firstTranslation = (firstResponse.body() as TranslationResponse)
