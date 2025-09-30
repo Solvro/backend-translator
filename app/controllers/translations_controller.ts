@@ -1,3 +1,4 @@
+import { RequestBundler } from "@solvro/utils/request_bundler";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
 
@@ -18,6 +19,12 @@ const openai = new OpenAI({
 });
 
 export default class TranslationsController {
+  // Lock mechanism to prevent race conditions on translation requests
+  private static translationRequestBundler = new RequestBundler<
+    string,
+    Translation
+  >();
+
   /**
    * Display a list of resource
    */
@@ -176,20 +183,46 @@ export default class TranslationsController {
   /**
    * Request translation by OpenAI
    */
-  async requestTranslationOpenAI({ request, response }: HttpContext) {
+  async requestTranslationOpenAI({ request }: HttpContext) {
     const { originalText, originalLanguageCode, translatedLanguageCode } =
       await openaiTranslationValidator.validate(request.all());
 
     const hash = createHash("sha256").update(originalText).digest("hex");
-    const existingTranslation = await Translation.query()
-      .where("hash", hash)
-      .where("translatedLanguageCode", translatedLanguageCode)
-      .first();
+    const lockKey = `${hash}-${translatedLanguageCode}`;
 
-    if (existingTranslation !== null) {
-      return await this.replaceTranslatedUrls(existingTranslation);
-    }
+    return TranslationsController.translationRequestBundler.run(
+      lockKey,
+      async () => {
+        // Check if translation already exists in the database
+        const existingTranslation = await Translation.query()
+          .where("hash", hash)
+          .where("translatedLanguageCode", translatedLanguageCode)
+          .first();
 
+        if (existingTranslation !== null) {
+          return await this.replaceTranslatedUrls(existingTranslation);
+        }
+
+        const translation = await this.performTranslation(
+          hash,
+          originalText,
+          originalLanguageCode,
+          translatedLanguageCode,
+        );
+        return await this.replaceTranslatedUrls(translation);
+      },
+    );
+  }
+
+  /**
+   * Perform the actual translation using OpenAI
+   */
+  private async performTranslation(
+    hash: string,
+    originalText: string,
+    originalLanguageCode: string,
+    translatedLanguageCode: string,
+  ): Promise<Translation> {
     const systemPrompt = `
     You are a professional translation tool. Your task is to translate text from ${originalLanguageCode} to ${translatedLanguageCode} while maintaining the highest quality and accuracy.  The languages were defined as ISO 639-1 codes
     Key requirements:
@@ -228,38 +261,30 @@ export default class TranslationsController {
     let translatedText: string | undefined;
     let counter = 0;
     logger.info(`Starting translation.`);
-    try {
-      for (const textChunk of textChunks) {
-        const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: textChunk },
-          ],
-          model: "gpt-4o",
-          store: true,
-        };
 
-        const completion = await openai.chat.completions.create(aiParams);
-        const content = completion.choices[0]?.message?.content ?? "";
-        if (translatedText === undefined) {
-          translatedText = content;
-        } else {
-          translatedText += content;
-        }
-        logger.info(`Translated chunk no: ${counter}.`);
-        counter++;
+    for (const textChunk of textChunks) {
+      const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: textChunk },
+        ],
+        model: "gpt-4o",
+        store: true,
+      };
+
+      const completion = await openai.chat.completions.create(aiParams);
+      const content = completion.choices[0]?.message?.content ?? "";
+      if (translatedText === undefined) {
+        translatedText = content;
+      } else {
+        translatedText += content;
       }
-    } catch (error) {
-      logger.error(`OpenAI request failed: ${error}`);
-      return response.internalServerError({
-        message: "Failed to fetch translation.",
-      });
+      logger.info(`Translated chunk no: ${counter}.`);
+      counter++;
     }
 
     if (translatedText === undefined) {
-      return response.internalServerError({
-        message: "Translation failed.",
-      });
+      throw new Error("Translation failed: no text returned");
     }
 
     logger.info(`Translated text in ${counter} chunks.`);
@@ -272,7 +297,8 @@ export default class TranslationsController {
       translatedLanguageCode,
       isApproved: false,
     });
-    return response.created(await this.replaceTranslatedUrls(translation));
+
+    return translation;
   }
 
   /**

@@ -51,7 +51,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: "Hello, how are you?",
       translatedText: "Bonjour, comment ça va ?",
@@ -103,7 +103,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithUrl,
       translatedText: "Bonjour https://example.com/elozelo",
@@ -159,7 +159,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithMultipleUrls,
       translatedText:
@@ -192,7 +192,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithTrailingSlash,
       translatedText: "Bonjour https://example.com/blog-fr/",
@@ -233,7 +233,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -281,7 +281,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -322,7 +322,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -356,7 +356,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    response.assertStatus(201);
+    response.assertStatus(200);
     response.assertBodyContains({
       originalText: textWithSolvroUrl,
       translatedText: "https://solvro.pl/en/portfolio",
@@ -385,7 +385,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    firstResponse.assertStatus(201);
+    firstResponse.assertStatus(200);
     firstResponse.assertBodyContains({
       originalText: textToTranslate,
       originalLanguageCode: "en",
@@ -463,7 +463,7 @@ test.group("Translations Controller", (group) => {
       })
       .header("x-api-token", token);
 
-    firstResponse.assertStatus(201);
+    firstResponse.assertStatus(200);
     firstResponse.assertBodyContains({
       originalText: longTextWithUrls,
       originalLanguageCode: "en",
@@ -514,5 +514,56 @@ test.group("Translations Controller", (group) => {
 
     // The translated text should have placeholder URLs
     assert.equal(translatedUrls.length, originalUrls.length);
+  });
+
+  test("should handle concurrent requests for the same translation without race condition", async ({
+    client,
+    assert,
+  }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    const textToTranslate = "Hello, testing concurrent requests";
+
+    // Make two parallel requests for the same translation
+    const [firstResponse, secondResponse] = await Promise.all([
+      client
+        .post("/api/v1/translations/openAI")
+        .json({
+          originalText: textToTranslate,
+          originalLanguageCode: "en",
+          translatedLanguageCode: "fr",
+        })
+        .header("x-api-token", token),
+      client
+        .post("/api/v1/translations/openAI")
+        .json({
+          originalText: textToTranslate,
+          originalLanguageCode: "en",
+          translatedLanguageCode: "fr",
+        })
+        .header("x-api-token", token),
+    ]);
+
+    firstResponse.assertStatus(200);
+    secondResponse.assertStatus(200);
+
+    // Both responses should contain the same translation
+    const firstTranslation = (firstResponse.body() as TranslationResponse)
+      .translatedText;
+    const secondTranslation = (secondResponse.body() as TranslationResponse)
+      .translatedText;
+
+    assert.equal(firstTranslation, secondTranslation);
+
+    // Verify that only one translation was stored in the database
+    const hash = createHash("sha256").update(textToTranslate).digest("hex");
+    const storedTranslations = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", "fr");
+
+    assert.equal(storedTranslations.length, 1);
+    assert.equal(storedTranslations[0].originalText, textToTranslate);
+    assert.equal(storedTranslations[0].translatedText, firstTranslation);
   });
 });
