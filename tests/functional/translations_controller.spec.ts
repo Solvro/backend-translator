@@ -10,6 +10,27 @@ import UrlTranslation from "#models/url_translation";
 interface TranslationResponse {
   translatedText: string;
 }
+
+interface BatchTranslationResult {
+  originalText: string;
+  translation: {
+    hash: string;
+    originalText: string;
+    translatedText: string;
+    originalLanguageCode: string;
+    translatedLanguageCode: string;
+    isApproved: boolean;
+  } | null;
+  success: boolean;
+  error?: string;
+}
+
+interface BatchTranslationResponseBody {
+  translations: BatchTranslationResult[];
+  total: number;
+  successful: number;
+  failed: number;
+}
 if (process.env.NODE_ENV === "production") {
   throw new Error("Tests should not run in production environment");
 }
@@ -565,5 +586,267 @@ test.group("Translations Controller", (group) => {
     assert.equal(storedTranslations.length, 1);
     assert.equal(storedTranslations[0].originalText, textToTranslate);
     assert.equal(storedTranslations[0].translatedText, firstTranslation);
+  });
+
+  test("should translate multiple texts using batch endpoint", async ({
+    client,
+    assert,
+  }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    const texts = ["Hello", "Good morning", "How are you?"];
+
+    const response = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        texts,
+        originalLanguageCode: "en",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(200);
+
+    const body = response.body() as BatchTranslationResponseBody;
+    assert.equal(body.total, 3);
+    assert.equal(body.successful, 3);
+    assert.equal(body.failed, 0);
+    assert.isArray(body.translations);
+    assert.equal(body.translations.length, 3);
+
+    // Verify all translations have the expected structure
+    body.translations.forEach((result, index) => {
+      const expectedText = texts[index];
+      assert.equal(result.originalText, expectedText);
+      assert.isTrue(result.success);
+      const translation = result.translation;
+      if (translation === null) {
+        throw new Error("Expected translation to be present");
+      }
+      assert.equal(translation.originalText, expectedText);
+      assert.equal(translation.originalLanguageCode, "en");
+      assert.equal(translation.translatedLanguageCode, "fr");
+      assert.isFalse(translation.isApproved);
+    });
+
+    // Verify all translations were stored in the database
+    for (const text of texts) {
+      const hash = createHash("sha256").update(text).digest("hex");
+      const storedTranslation = await Translation.query()
+        .where("hash", hash)
+        .where("translatedLanguageCode", "fr")
+        .first();
+
+      assert.exists(storedTranslation);
+      assert.equal(storedTranslation?.originalText, text);
+    }
+  });
+
+  test("should handle batch translation with existing translations", async ({
+    client,
+    assert,
+  }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    // Create an existing translation
+    const existingText = "Hello";
+    const existingHash = createHash("sha256")
+      .update(existingText)
+      .digest("hex");
+    await Translation.create({
+      hash: existingHash,
+      originalText: existingText,
+      translatedText: "Bonjour",
+      originalLanguageCode: "en",
+      translatedLanguageCode: "fr",
+      isApproved: true,
+    });
+
+    const texts = ["Hello", "Good morning"];
+
+    const response = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        texts,
+        originalLanguageCode: "en",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(200);
+
+    const body = response.body() as BatchTranslationResponseBody;
+    assert.equal(body.total, 2);
+    assert.equal(body.successful, 2);
+    assert.equal(body.failed, 0);
+
+    // Verify the existing translation was returned without modification
+    const helloResult = body.translations.find(
+      (t: { originalText: string }) => t.originalText === "Hello",
+    );
+    if (helloResult === undefined) {
+      throw new Error("Expected existing translation to be returned");
+    }
+    const helloTranslation = helloResult.translation;
+    if (helloTranslation === null) {
+      throw new Error("Expected existing translation to be returned");
+    }
+    assert.equal(helloTranslation.translatedText, "Bonjour");
+    assert.isTrue(helloTranslation.isApproved);
+  });
+
+  test("should handle batch translation with URL replacements", async ({
+    client,
+    assert,
+  }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://example.com/page1",
+      targetUrl: "https://example.com/page1-fr",
+      originalLanguageCode: "en",
+      translatedLanguageCode: "fr",
+    });
+
+    await UrlTranslation.create({
+      sourceUrl: "https://example.com/page2",
+      targetUrl: "https://example.com/page2-fr",
+      originalLanguageCode: "en",
+      translatedLanguageCode: "fr",
+    });
+
+    const texts = [
+      "Visit https://example.com/page1 for more info",
+      "Check out https://example.com/page2",
+    ];
+
+    const response = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        texts,
+        originalLanguageCode: "en",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(200);
+
+    const body = response.body() as BatchTranslationResponseBody;
+    assert.equal(body.successful, 2);
+
+    // Verify URLs were replaced in the translations
+    for (const result of body.translations) {
+      assert.isTrue(result.success);
+      if (result.originalText.includes("page1")) {
+        const translation = result.translation;
+        if (translation === null) {
+          throw new Error("Expected translation to be present");
+        }
+        assert.include(
+          translation.translatedText,
+          "https://example.com/page1-fr",
+        );
+      }
+      if (result.originalText.includes("page2")) {
+        const translation = result.translation;
+        if (translation === null) {
+          throw new Error("Expected translation to be present");
+        }
+        assert.include(
+          translation.translatedText,
+          "https://example.com/page2-fr",
+        );
+      }
+    }
+  });
+
+  test("should validate batch translation request body", async ({ client }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    // Missing texts array
+    const response1 = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        originalLanguageCode: "en",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response1.assertStatus(422);
+
+    // Empty texts array
+    const response2 = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        texts: [],
+        originalLanguageCode: "en",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response2.assertStatus(422);
+
+    // Invalid language code
+    const response3 = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        texts: ["Hello"],
+        originalLanguageCode: "invalid",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response3.assertStatus(422);
+  });
+
+  test("should handle batch translation with duplicate texts", async ({
+    client,
+    assert,
+  }) => {
+    await Language.create({ isoCode: "en" });
+    await Language.create({ isoCode: "fr" });
+
+    const texts = ["Hello", "Hello", "Good morning"];
+
+    const response = await client
+      .post("/api/v1/translations/openAI/batch")
+      .json({
+        texts,
+        originalLanguageCode: "en",
+        translatedLanguageCode: "fr",
+      })
+      .header("x-api-token", token);
+
+    response.assertStatus(200);
+
+    const body = response.body() as BatchTranslationResponseBody;
+    assert.equal(body.total, 3);
+    assert.equal(body.successful, 3);
+
+    // Verify that duplicate "Hello" entries have the same translation
+    const helloTranslations = body.translations.filter(
+      (t: { originalText: string }) => t.originalText === "Hello",
+    );
+    assert.equal(helloTranslations.length, 2);
+    const [firstHello, secondHello] = helloTranslations;
+    if (firstHello.translation === null || secondHello.translation === null) {
+      throw new Error("Expected translations for duplicate texts");
+    }
+    assert.equal(
+      firstHello.translation.translatedText,
+      secondHello.translation.translatedText,
+    );
+
+    // Verify only one translation was stored for "Hello"
+    const hash = createHash("sha256").update("Hello").digest("hex");
+    const storedTranslations = await Translation.query()
+      .where("hash", hash)
+      .where("translatedLanguageCode", "fr");
+
+    assert.equal(storedTranslations.length, 1);
   });
 });

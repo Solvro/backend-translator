@@ -47,6 +47,10 @@ router
           TranslationsController,
           "requestTranslationOpenAI",
         ]);
+        router.post("/openAI/batch", [
+          TranslationsController,
+          "requestBatchTranslation",
+        ]);
       })
       .prefix("/translations");
   })
