@@ -177,6 +177,60 @@ POST /translations/openAI
 
 **Response:** Translation object created using OpenAI.
 
+#### Request Batch Translation via OpenAI
+
+```
+POST /translations/openAI/batch
+```
+
+**Body:**
+
+```json
+{
+  "texts": ["Hello", "Good morning", "How are you?"],
+  "originalLanguageCode": "en",
+  "translatedLanguageCode": "es"
+}
+```
+
+**Response:**
+
+```json
+{
+  "translations": [
+    {
+      "originalText": "Hello",
+      "translation": {
+        "hash": "...",
+        "originalText": "Hello",
+        "translatedText": "Hola",
+        "originalLanguageCode": "en",
+        "translatedLanguageCode": "es",
+        "isApproved": false,
+        "createdAt": "...",
+        "updatedAt": "..."
+      },
+      "success": true
+    },
+    {
+      "originalText": "Good morning",
+      "translation": { ... },
+      "success": true
+    },
+    {
+      "originalText": "How are you?",
+      "translation": { ... },
+      "success": true
+    }
+  ],
+  "total": 3,
+  "successful": 3,
+  "failed": 0
+}
+```
+
+This endpoint allows translating multiple texts in a single request. Each text is processed independently, and if a translation already exists in the database, it will be reused. The response includes individual success/failure status for each translation, along with summary statistics.
+
 ---
 
 ## Notes

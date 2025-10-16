@@ -9,6 +9,7 @@ import Translation from "#models/translation";
 import UrlTranslation from "#models/url_translation";
 import env from "#start/env";
 import {
+  batchTranslationValidator,
   createTranslationValidator,
   openaiTranslationValidator,
   updateTranslationValidator,
@@ -315,5 +316,70 @@ export default class TranslationsController {
   async translationsForText({ params }: HttpContext) {
     const { hash } = params as { hash: string };
     return Translation.query().where("hash", hash);
+  }
+
+  /**
+   * Request batch translation by OpenAI
+   */
+  async requestBatchTranslation({ request, response }: HttpContext) {
+    const { texts, originalLanguageCode, translatedLanguageCode } =
+      await batchTranslationValidator.validate(request.all());
+
+    const results = await Promise.all(
+      texts.map(async (originalText) => {
+        const hash = createHash("sha256").update(originalText).digest("hex");
+        const lockKey = `${hash}-${translatedLanguageCode}`;
+
+        try {
+          const translationResult =
+            await TranslationsController.translationRequestBundler.run(
+              lockKey,
+              async () => {
+                // Check if translation already exists in the database
+                const existingTranslation = await Translation.query()
+                  .where("hash", hash)
+                  .where("translatedLanguageCode", translatedLanguageCode)
+                  .first();
+
+                if (existingTranslation !== null) {
+                  return await this.replaceTranslatedUrls(existingTranslation);
+                }
+
+                const newTranslation = await this.performTranslation(
+                  hash,
+                  originalText,
+                  originalLanguageCode,
+                  translatedLanguageCode,
+                );
+                return await this.replaceTranslatedUrls(newTranslation);
+              },
+            );
+
+          return {
+            originalText,
+            translation: translationResult,
+            success: true,
+          };
+        } catch (error) {
+          logger.error(
+            `Failed to translate text: ${originalText}`,
+            error as Error,
+          );
+          return {
+            originalText,
+            translation: null,
+            success: false,
+            error: (error as Error).message,
+          };
+        }
+      }),
+    );
+
+    return response.ok({
+      translations: results,
+      total: texts.length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+    });
   }
 }
