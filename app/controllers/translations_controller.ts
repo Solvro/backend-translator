@@ -228,18 +228,19 @@ export default class TranslationsController {
     You are a professional translation tool. Your task is to translate text from ${originalLanguageCode} to ${translatedLanguageCode} while maintaining the highest quality and accuracy.  The languages were defined as ISO 639-1 codes
     Key requirements:
     1. Preserve all original formatting, including line breaks, spacing, and special characters
-    2. Maintain the original tone, style, and intent of the text
-    3. Keep technical terms, proper nouns, and domain-specific vocabulary intact
-    4. Ensure natural-sounding translations in the target language
-    5. Do not add any explanatory text or comments
-    6. Do not add any additional information
-    7. If the text contains no alphanumeric characters, return it unchanged
-    8. For ambiguous terms, choose the most contextually appropriate translation
-    9. Never return anything else than the translated text. Phrases like "Translation:", "Translated text:" or "No text to translate" are not allowed.
-    10. Do not trim extra spaces or newlines.
-    11. If the original text is already in the target language, return it unchanged.
-    12. Do not translate URLs, email addresses, phone numbers, or other non-text content e.g. "https://www.google.com", "solvro.pwr.edu.pl" or "john.doe@example.com" or "+48 123 456 789"
-    13. Do not translate addresses / street names. Also try to not translate bus stops, train stations, etc.
+    2. Preserve ALL HTML tags (e.g., <p>, <br>, <strong>, <em>, <a>, <div>, <span>, etc.) exactly as they appear in the original text - do not modify, remove, or add any HTML tags
+    3. Maintain the original tone, style, and intent of the text
+    4. Keep technical terms, proper nouns, and domain-specific vocabulary intact
+    5. Ensure natural-sounding translations in the target language
+    6. Do not add any explanatory text or comments
+    7. Do not add any additional information
+    8. If the text contains no alphanumeric characters, return it unchanged
+    9. For ambiguous terms, choose the most contextually appropriate translation
+    10. Never return anything else than the translated text. Phrases like "Translation:", "Translated text:" or "No text to translate" are not allowed.
+    11. Do not trim extra spaces or newlines.
+    12. If the original text is already in the target language, return it unchanged.
+    13. Do not translate URLs, email addresses, phone numbers, or other non-text content e.g. "https://www.google.com", "solvro.pwr.edu.pl" or "john.doe@example.com" or "+48 123 456 789"
+    14. Do not translate addresses / street names. Also try to not translate bus stops, train stations, etc.
 
     ${
       originalLanguageCode === "pl" && translatedLanguageCode === "en"
