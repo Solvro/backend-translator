@@ -8,6 +8,7 @@ import Translation from "#models/translation";
 import UrlTranslation from "#models/url_translation";
 
 interface TranslationResponse {
+  originalText: string;
   translatedText: string;
 }
 
@@ -75,11 +76,16 @@ test.group("Translations Controller", (group) => {
     response.assertStatus(200);
     response.assertBodyContains({
       originalText: "Hello, how are you?",
-      translatedText: "Bonjour, comment ça va ?",
       originalLanguageCode: "en",
       translatedLanguageCode: "fr",
       isApproved: false,
     });
+
+    // LLM output is non-deterministic across models — assert shape, not wording
+    const body = response.body() as TranslationResponse;
+    assert.isString(body.translatedText);
+    assert.isAbove(body.translatedText.trim().length, 0);
+    assert.notEqual(body.translatedText, body.originalText);
 
     // Verify that the translation was stored in the database
     const hash = createHash("sha256")
@@ -92,7 +98,7 @@ test.group("Translations Controller", (group) => {
 
     assert.exists(storedTranslation);
     assert.equal(storedTranslation?.originalText, "Hello, how are you?");
-    assert.equal(storedTranslation?.translatedText, "Bonjour, comment ça va ?");
+    assert.equal(storedTranslation?.translatedText, body.translatedText);
     assert.equal(storedTranslation?.originalLanguageCode, "en");
     assert.equal(storedTranslation?.translatedLanguageCode, "fr");
     assert.equal(storedTranslation?.isApproved, false);

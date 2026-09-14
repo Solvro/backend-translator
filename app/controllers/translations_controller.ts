@@ -270,7 +270,7 @@ export default class TranslationsController {
           { role: "system", content: systemPrompt },
           { role: "user", content: textChunk },
         ],
-        model: "gpt-4o",
+        model: "gpt-5.6-luna",
         store: true,
       };
 
