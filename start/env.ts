@@ -43,6 +43,21 @@ export default await Env.create(new URL("../", import.meta.url), {
   OPENAI_API_KEY: Env.schema.string(),
 
   /*
+  |--------------------------------------------------------------------------
+  | Translation backend
+  |--------------------------------------------------------------------------
+  |
+  | "openai" talks to OpenAI directly, "nvidia" uses the OpenAI-compatible
+  | NVIDIA NIM endpoint (free preview models, e.g. nemotron-3-super).
+  |
+  */
+  TRANSLATION_PROVIDER: Env.schema.string.optional(),
+  TRANSLATION_MODEL: Env.schema.string.optional(),
+  TRANSLATION_CONCURRENCY: Env.schema.string.optional(),
+  NVIDIA_API_KEY: Env.schema.string.optional(),
+  NVIDIA_BASE_URL: Env.schema.string.optional(),
+
+  /*
   |----------------------------------------------------------
   | Variables for configuring session package
   |----------------------------------------------------------

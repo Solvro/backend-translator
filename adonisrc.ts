@@ -71,7 +71,9 @@ export default defineConfig({
       {
         files: ["tests/functional/**/*.spec(.ts|.js)"],
         name: "functional",
-        timeout: 30000,
+        // These tests hit real translation APIs; the free NVIDIA preview
+        // tier is slow and throttled, so allow generous headroom.
+        timeout: 60000,
       },
     ],
     forceExit: false,

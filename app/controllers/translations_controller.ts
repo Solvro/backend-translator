@@ -1,23 +1,22 @@
 import { RequestBundler } from "@solvro/utils/request_bundler";
 import { createHash } from "node:crypto";
-import OpenAI from "openai";
 
 import type { HttpContext } from "@adonisjs/core/http";
 import logger from "@adonisjs/core/services/logger";
 
 import Translation from "#models/translation";
 import UrlTranslation from "#models/url_translation";
-import env from "#start/env";
+import {
+  completeChat,
+  getTranslationBackend,
+  mapWithConcurrency,
+} from "#services/translation_backend";
 import {
   batchTranslationValidator,
   createTranslationValidator,
   openaiTranslationValidator,
   updateTranslationValidator,
 } from "#validators/translation";
-
-const openai = new OpenAI({
-  apiKey: env.get("OPENAI_API_KEY"),
-});
 
 export default class TranslationsController {
   // Lock mechanism to prevent race conditions on translation requests
@@ -216,7 +215,7 @@ export default class TranslationsController {
   }
 
   /**
-   * Perform the actual translation using OpenAI
+   * Perform the actual translation using the configured backend
    */
   private async performTranslation(
     hash: string,
@@ -260,22 +259,13 @@ export default class TranslationsController {
     `.trim();
 
     const textChunks = this.splitTextIntoChunks(originalText);
+    const backend = getTranslationBackend();
     let translatedText: string | undefined;
     let counter = 0;
-    logger.info(`Starting translation.`);
+    logger.info(`Starting translation with ${backend.model}.`);
 
     for (const textChunk of textChunks) {
-      const aiParams: OpenAI.Chat.ChatCompletionCreateParams = {
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: textChunk },
-        ],
-        model: "gpt-5.6-luna",
-        store: true,
-      };
-
-      const completion = await openai.chat.completions.create(aiParams);
-      const content = completion.choices[0]?.message?.content ?? "";
+      const content = await completeChat(backend, systemPrompt, textChunk);
       if (translatedText === undefined) {
         translatedText = content;
       } else {
@@ -326,8 +316,10 @@ export default class TranslationsController {
     const { texts, originalLanguageCode, translatedLanguageCode } =
       await batchTranslationValidator.validate(request.all());
 
-    const results = await Promise.all(
-      texts.map(async (originalText) => {
+    const results = await mapWithConcurrency(
+      texts,
+      getTranslationBackend().concurrency,
+      async (originalText) => {
         const hash = createHash("sha256").update(originalText).digest("hex");
         const lockKey = `${hash}-${translatedLanguageCode}`;
 
@@ -373,7 +365,7 @@ export default class TranslationsController {
             error: (error as Error).message,
           };
         }
-      }),
+      },
     );
 
     return response.ok({
