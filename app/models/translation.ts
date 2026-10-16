@@ -30,6 +30,10 @@ export default class Translation extends BaseModel {
   @column()
   declare isApproved: boolean;
 
+  /** Model that produced the translation, null if it was created by hand */
+  @column()
+  declare model: string | null;
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime;
 

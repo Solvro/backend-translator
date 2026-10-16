@@ -102,6 +102,7 @@ test.group("Translations Controller", (group) => {
     assert.equal(storedTranslation?.originalLanguageCode, "en");
     assert.equal(storedTranslation?.translatedLanguageCode, "fr");
     assert.equal(storedTranslation?.isApproved, false);
+    assert.isString(storedTranslation?.model);
   });
 
   test("should replace URLs based on url_translations table", async ({

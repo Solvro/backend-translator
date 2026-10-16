@@ -112,6 +112,8 @@ export default class TranslationsController {
       hash: newHash,
       ...data,
       isApproved: false,
+      // Edited by hand, so no longer the model's output
+      model: null,
     });
     await translation.save();
     return translation;
@@ -307,6 +309,7 @@ export default class TranslationsController {
       originalLanguageCode,
       translatedLanguageCode,
       isApproved: false,
+      model: backend.model,
     });
 
     return translation;
