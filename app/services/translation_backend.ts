@@ -20,6 +20,8 @@ export interface TranslationBackend {
   model: string;
   /** NVIDIA NIM rejects `store: true`, OpenAI accepts it. */
   store: boolean;
+  /** Provider-specific fields merged into every chat completion request. */
+  extraParams: Record<string, unknown>;
   /** Free preview tiers return 429/503 far more often than paid APIs. */
   maxAttempts: number;
   /** Parallel translations allowed before the provider starts throttling. */
@@ -56,6 +58,9 @@ export function getTranslationBackend(): TranslationBackend {
       }),
       model: env.get("TRANSLATION_MODEL") ?? DEFAULT_NVIDIA_MODEL,
       store: false,
+      // Nemotron reasons before answering by default, which is ~9x slower
+      // and adds nothing for translation
+      extraParams: { chat_template_kwargs: { enable_thinking: false } },
       maxAttempts: 4,
       // The free preview tier throttles bursts, so keep batches narrow
       concurrency: parseConcurrency(env.get("TRANSLATION_CONCURRENCY"), 2),
@@ -67,6 +72,7 @@ export function getTranslationBackend(): TranslationBackend {
     client: new OpenAI({ apiKey: env.get("OPENAI_API_KEY") }),
     model: env.get("TRANSLATION_MODEL") ?? DEFAULT_OPENAI_MODEL,
     store: true,
+    extraParams: {},
     maxAttempts: 3,
     concurrency: parseConcurrency(env.get("TRANSLATION_CONCURRENCY"), 8),
   };
@@ -84,6 +90,10 @@ function parseConcurrency(value: string | undefined, fallback: number) {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function isRetryable(error: unknown): boolean {
+  // Covers timeouts too (APIConnectionTimeoutError extends it)
+  if (error instanceof OpenAI.APIConnectionError) {
+    return true;
+  }
   const status = (error as { status?: number } | null)?.status;
   if (status === 429 || (status !== undefined && status >= 500)) {
     return true;
@@ -141,6 +151,7 @@ export async function completeChat(
         ],
         model: backend.model,
         ...(backend.store ? { store: true } : {}),
+        ...backend.extraParams,
       };
       const completion = await backend.client.chat.completions.create(params);
       return completion.choices[0]?.message?.content ?? "";

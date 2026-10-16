@@ -20,10 +20,32 @@ import {
 
 export default class TranslationsController {
   // Lock mechanism to prevent race conditions on translation requests
+  // Handlers never reject: RequestBundler chains `.finally()` on the task
+  // promise without a catch, so a rejection there crashes the process
   private static translationRequestBundler = new RequestBundler<
     string,
-    Translation
+    { ok: true; value: Translation } | { ok: false; error: unknown }
   >();
+
+  private async runLocked(
+    lockKey: string,
+    handler: () => Promise<Translation>,
+  ): Promise<Translation> {
+    const result = await TranslationsController.translationRequestBundler.run(
+      lockKey,
+      async () => {
+        try {
+          return { ok: true, value: await handler() };
+        } catch (error) {
+          return { ok: false, error };
+        }
+      },
+    );
+    if (!result.ok) {
+      throw result.error;
+    }
+    return result.value;
+  }
 
   /**
    * Display a list of resource
@@ -190,28 +212,25 @@ export default class TranslationsController {
     const hash = createHash("sha256").update(originalText).digest("hex");
     const lockKey = `${hash}-${translatedLanguageCode}`;
 
-    return TranslationsController.translationRequestBundler.run(
-      lockKey,
-      async () => {
-        // Check if translation already exists in the database
-        const existingTranslation = await Translation.query()
-          .where("hash", hash)
-          .where("translatedLanguageCode", translatedLanguageCode)
-          .first();
+    return this.runLocked(lockKey, async () => {
+      // Check if translation already exists in the database
+      const existingTranslation = await Translation.query()
+        .where("hash", hash)
+        .where("translatedLanguageCode", translatedLanguageCode)
+        .first();
 
-        if (existingTranslation !== null) {
-          return await this.replaceTranslatedUrls(existingTranslation);
-        }
+      if (existingTranslation !== null) {
+        return await this.replaceTranslatedUrls(existingTranslation);
+      }
 
-        const translation = await this.performTranslation(
-          hash,
-          originalText,
-          originalLanguageCode,
-          translatedLanguageCode,
-        );
-        return await this.replaceTranslatedUrls(translation);
-      },
-    );
+      const translation = await this.performTranslation(
+        hash,
+        originalText,
+        originalLanguageCode,
+        translatedLanguageCode,
+      );
+      return await this.replaceTranslatedUrls(translation);
+    });
   }
 
   /**
@@ -324,29 +343,25 @@ export default class TranslationsController {
         const lockKey = `${hash}-${translatedLanguageCode}`;
 
         try {
-          const translationResult =
-            await TranslationsController.translationRequestBundler.run(
-              lockKey,
-              async () => {
-                // Check if translation already exists in the database
-                const existingTranslation = await Translation.query()
-                  .where("hash", hash)
-                  .where("translatedLanguageCode", translatedLanguageCode)
-                  .first();
+          const translationResult = await this.runLocked(lockKey, async () => {
+            // Check if translation already exists in the database
+            const existingTranslation = await Translation.query()
+              .where("hash", hash)
+              .where("translatedLanguageCode", translatedLanguageCode)
+              .first();
 
-                if (existingTranslation !== null) {
-                  return await this.replaceTranslatedUrls(existingTranslation);
-                }
+            if (existingTranslation !== null) {
+              return await this.replaceTranslatedUrls(existingTranslation);
+            }
 
-                const newTranslation = await this.performTranslation(
-                  hash,
-                  originalText,
-                  originalLanguageCode,
-                  translatedLanguageCode,
-                );
-                return await this.replaceTranslatedUrls(newTranslation);
-              },
+            const newTranslation = await this.performTranslation(
+              hash,
+              originalText,
+              originalLanguageCode,
+              translatedLanguageCode,
             );
+            return await this.replaceTranslatedUrls(newTranslation);
+          });
 
           return {
             originalText,
